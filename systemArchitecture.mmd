@@ -1,0 +1,112 @@
+classDiagram
+    direction TB
+
+    class Displayable {
+        <<abstract>>
+        +display()* void
+    }
+
+    class TariffPolicy {
+        <<abstract>>
+        #double hourlyRate
+        +getHourlyRate() double
+        +setHourlyRate(double) void
+        +getVehicleType()* VehicleType
+        +getTypeName()* string
+        +calculateFee(int) double
+    }
+
+    class MotorcycleTariff {
+        +getVehicleType() VehicleType
+        +getTypeName() string
+    }
+
+    class CarTariff {
+        +getVehicleType() VehicleType
+        +getTypeName() string
+    }
+
+    class TruckTariff {
+        +getVehicleType() VehicleType
+        +getTypeName() string
+    }
+
+    class TariffManager {
+        -vector~unique_ptr~TariffPolicy~~ policies
+        +getPolicy(VehicleType) TariffPolicy*
+        +updateRate(VehicleType, double) bool
+        +showRates() void
+    }
+
+    class ParkingSlot {
+        -string slotId
+        -VehicleType supportedType
+        -string zone
+        -bool occupied
+        +getSlotId() string
+        +isOccupied() bool
+        +setOccupied(bool) void
+        +display() void
+    }
+
+    class Vehicle {
+        -string plateNumber
+        -VehicleType vehicleType
+        -time_t entryTime
+        -string allocatedSlot
+        +getPlateNumber() string
+        +getVehicleType() VehicleType
+        +getEntryTime() time_t
+        +getAllocatedSlot() string
+    }
+
+    class ParkingTransaction {
+        -string plateNumber
+        -VehicleType vehicleType
+        -string slotId
+        -time_t entryTime
+        -time_t exitTime
+        -int hoursParked
+        -double fee
+        +getFee() double
+        +getExitTime() time_t
+        +display() void
+    }
+
+    class ParkingManager {
+        -vector~ParkingSlot~ slots
+        -unordered_map~string,Vehicle~ activeVehicles
+        -vector~ParkingTransaction~ history
+        -TariffManager tariffManager
+        +addParkingSlot() void
+        +registerVehicleEntry() void
+        +registerVehicleExit() void
+        +updatePrices() void
+        +showAvailableSlots() void
+        +showAllSlots() void
+        +showParkedVehicles() void
+        +showHistory() void
+        +showRevenue() void
+        +showCurrentRates() void
+        +loadDemoData() void
+    }
+
+    Displayable <|-- ParkingSlot
+    Displayable <|-- ParkingTransaction
+
+    TariffPolicy <|-- MotorcycleTariff
+    TariffPolicy <|-- CarTariff
+    TariffPolicy <|-- TruckTariff
+
+    TariffManager "1" o-- "*" TariffPolicy : manages
+
+    ParkingManager "1" --> "*" ParkingSlot : stores
+    ParkingManager "1" --> "*" Vehicle : tracks active
+    ParkingManager "1" --> "*" ParkingTransaction : archives
+    ParkingManager "1" --> "1" TariffManager : uses
+
+    note for ParkingManager "Core controller: slot config, entry/exit, billing, reports"
+    note for ParkingSlot "Task 1: vector for traversal and slot lookup"
+    note for Vehicle "Task 2: unordered_map for O(1) plate lookup"
+    note for ParkingTransaction "Task 4: vector preserves completed transaction history"
+    note for TariffPolicy "Task 3: polymorphic fee calculation at exit time"
