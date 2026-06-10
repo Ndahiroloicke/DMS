@@ -201,6 +201,8 @@ Run this full flow in order:
 8           → History shows 3 records
 9           → Revenue = 3000 RWF (if all exited same day)
 10          → Rates still correct
+12 1 history_report.txt → Export parking history to file
+12 2 revenue_report.txt → Export daily revenue to file
 0           → Exit system
 ```
 
@@ -208,7 +210,7 @@ Run this full flow in order:
 
 ---
 
-## Test 8: Input Validation
+## Test 9: Input Validation
 
 | Test | Input | Expected Result |
 |------|-------|-----------------|
@@ -231,6 +233,7 @@ Run this full flow in order:
 - [ ] History stores completed transactions
 - [ ] Price updates affect new exits only
 - [ ] All reports work
+- [ ] Reports can be exported to files
 - [ ] Invalid inputs are handled safely
 - [ ] Program exits cleanly with menu `0`
 
