@@ -2,6 +2,7 @@
 #include <cctype>
 #include <cmath>
 #include <ctime>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -121,6 +122,25 @@ bool isValidIdentifier(const string& value) {
     }
 
     return true;
+}
+
+bool isValidFilename(const string& filename) {
+    if (filename.empty()) {
+        return false;
+    }
+
+    const string invalidChars = "\\/:*?\"<>|";
+    for (char ch : filename) {
+        if (invalidChars.find(ch) != string::npos) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void writeFileLine(ofstream& file, char separator, int width) {
+    file << string(width, separator) << "\n";
 }
 
 // ---------------------------------------------------------------------------
@@ -326,6 +346,48 @@ public:
         return exitTime;
     }
 
+    time_t getEntryTime() const {
+        return entryTime;
+    }
+
+    string getPlateNumber() const {
+        return plateNumber;
+    }
+
+    VehicleType getVehicleType() const {
+        return vehicleType;
+    }
+
+    string getSlotId() const {
+        return slotId;
+    }
+
+    int getHoursParked() const {
+        return hoursParked;
+    }
+
+    void writeTo(ostream& out) const {
+        out << left
+            << setw(12) << plateNumber
+            << setw(14) << vehicleTypeToString(vehicleType)
+            << setw(10) << slotId
+            << setw(8) << hoursParked
+            << setw(12) << fixed << setprecision(0) << fee
+            << setw(20) << formatDateTime(entryTime)
+            << setw(20) << formatDateTime(exitTime)
+            << "\n";
+    }
+
+    void writeCsvTo(ostream& out) const {
+        out << plateNumber << ","
+            << vehicleTypeToString(vehicleType) << ","
+            << slotId << ","
+            << hoursParked << ","
+            << fixed << setprecision(0) << fee << ","
+            << formatDateTime(entryTime) << ","
+            << formatDateTime(exitTime) << "\n";
+    }
+
     void display() const override {
         cout << left
              << setw(12) << plateNumber
@@ -474,6 +536,45 @@ private:
              << setw(20) << "Exit Time"
              << "\n";
         printLine('-', 76);
+    }
+
+    void writeHistoryHeader(ostream& out) const {
+        out << left
+            << setw(12) << "Plate"
+            << setw(14) << "Vehicle Type"
+            << setw(10) << "Slot"
+            << setw(8) << "Hours"
+            << setw(12) << "Fee (RWF)"
+            << setw(20) << "Entry Time"
+            << setw(20) << "Exit Time"
+            << "\n";
+        writeFileLine(out, '-', 96);
+    }
+
+    struct RevenueSummary {
+        time_t reportTime;
+        int dailyTransactions;
+        double dailyTotal;
+        double allTimeTotal;
+    };
+
+    RevenueSummary buildRevenueSummary() const {
+        RevenueSummary summary {};
+        summary.reportTime = time(nullptr);
+        summary.dailyTransactions = 0;
+        summary.dailyTotal = 0.0;
+        summary.allTimeTotal = 0.0;
+
+        for (const auto& transaction : history) {
+            summary.allTimeTotal += transaction.getFee();
+
+            if (isSameDay(transaction.getExitTime(), summary.reportTime)) {
+                summary.dailyTotal += transaction.getFee();
+                summary.dailyTransactions++;
+            }
+        }
+
+        return summary;
     }
 
 public:
@@ -767,30 +868,154 @@ public:
     void showRevenue() const {
         printTitle("DAILY REVENUE REPORT");
 
-        time_t now = time(nullptr);
-        double dailyTotal = 0.0;
-        int transactionCount = 0;
+        RevenueSummary summary = buildRevenueSummary();
 
+        cout << left << setw(24) << "Report Date" << ": " << formatDateTime(summary.reportTime) << "\n";
+        cout << left << setw(24) << "Transactions Today" << ": " << summary.dailyTransactions << "\n";
+        printLine('-', 40);
+        cout << left << setw(24) << "Daily Revenue (RWF)" << ": "
+             << fixed << setprecision(0) << summary.dailyTotal << "\n";
+        cout << left << setw(24) << "All-Time Revenue (RWF)" << ": "
+             << fixed << setprecision(0) << summary.allTimeTotal << "\n";
+    }
+
+    bool saveHistoryToFile(const string& filename) const {
+        ofstream file(filename, ios::out | ios::trunc);
+        if (!file.is_open()) {
+            return false;
+        }
+
+        file << "SMART PARKING MANAGEMENT SYSTEM\n";
+        file << "PARKING HISTORY REPORT\n";
+        file << "Generated: " << formatDateTime(time(nullptr)) << "\n";
+        writeFileLine(file, '=', 96);
+        file << "Total Records: " << history.size() << "\n\n";
+
+        if (history.empty()) {
+            file << "No completed parking transactions found.\n";
+            return file.good();
+        }
+
+        writeHistoryHeader(file);
         for (const auto& transaction : history) {
-            if (isSameDay(transaction.getExitTime(), now)) {
-                dailyTotal += transaction.getFee();
-                transactionCount++;
+            transaction.writeTo(file);
+        }
+
+        file << "\n";
+        writeFileLine(file, '=', 96);
+        file << "CSV FORMAT\n";
+        file << "Plate,Vehicle Type,Slot,Hours,Fee (RWF),Entry Time,Exit Time\n";
+        for (const auto& transaction : history) {
+            transaction.writeCsvTo(file);
+        }
+
+        return file.good();
+    }
+
+    bool saveRevenueToFile(const string& filename) const {
+        ofstream file(filename, ios::out | ios::trunc);
+        if (!file.is_open()) {
+            return false;
+        }
+
+        RevenueSummary summary = buildRevenueSummary();
+
+        file << "SMART PARKING MANAGEMENT SYSTEM\n";
+        file << "DAILY REVENUE REPORT\n";
+        file << "Generated: " << formatDateTime(summary.reportTime) << "\n";
+        writeFileLine(file, '=', 60);
+        file << left << setw(28) << "Report Date" << ": " << formatDateTime(summary.reportTime) << "\n";
+        file << left << setw(28) << "Transactions Today" << ": " << summary.dailyTransactions << "\n";
+        writeFileLine(file, '-', 60);
+        file << left << setw(28) << "Daily Revenue (RWF)" << ": "
+             << fixed << setprecision(0) << summary.dailyTotal << "\n";
+        file << left << setw(28) << "All-Time Revenue (RWF)" << ": "
+             << fixed << setprecision(0) << summary.allTimeTotal << "\n";
+        file << "\n";
+        writeFileLine(file, '=', 60);
+        file << "CSV FORMAT\n";
+        file << "Metric,Value\n";
+        file << "Report Date," << formatDateTime(summary.reportTime) << "\n";
+        file << "Transactions Today," << summary.dailyTransactions << "\n";
+        file << "Daily Revenue (RWF)," << fixed << setprecision(0) << summary.dailyTotal << "\n";
+        file << "All-Time Revenue (RWF)," << fixed << setprecision(0) << summary.allTimeTotal << "\n";
+
+        if (!history.empty()) {
+            file << "\nTODAY'S TRANSACTIONS\n";
+            file << "Plate,Vehicle Type,Slot,Hours,Fee (RWF),Entry Time,Exit Time\n";
+
+            for (const auto& transaction : history) {
+                if (isSameDay(transaction.getExitTime(), summary.reportTime)) {
+                    transaction.writeCsvTo(file);
+                }
             }
         }
 
-        cout << left << setw(24) << "Report Date" << ": " << formatDateTime(now) << "\n";
-        cout << left << setw(24) << "Transactions Today" << ": " << transactionCount << "\n";
-        printLine('-', 40);
-        cout << left << setw(24) << "Daily Revenue (RWF)" << ": "
-             << fixed << setprecision(0) << dailyTotal << "\n";
+        return file.good();
+    }
 
-        double allTimeTotal = 0.0;
-        for (const auto& transaction : history) {
-            allTimeTotal += transaction.getFee();
+    void exportReports() {
+        printTitle("EXPORT REPORTS TO FILE");
+
+        cout << "Select report to save:\n";
+        cout << "  1. Parking History\n";
+        cout << "  2. Daily Revenue\n";
+        cout << "  3. Both Reports\n";
+        cout << "Choice: ";
+
+        int reportChoice;
+        if (!(cin >> reportChoice) || reportChoice < 1 || reportChoice > 3) {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            printMessage("Invalid report choice. Select 1, 2, or 3.", false);
+            return;
         }
 
-        cout << left << setw(24) << "All-Time Revenue (RWF)" << ": "
-             << fixed << setprecision(0) << allTimeTotal << "\n";
+        string filename;
+        cout << "Enter filename (example: parking_report.txt): ";
+        cin >> filename;
+
+        if (!isValidFilename(filename)) {
+            printMessage("Invalid filename. Avoid empty names and special characters.", false);
+            return;
+        }
+
+        bool historySaved = true;
+        bool revenueSaved = true;
+
+        if (reportChoice == 1 || reportChoice == 3) {
+            string historyFile = filename;
+            if (reportChoice == 3 && filename.find('.') == string::npos) {
+                historyFile += "_history.txt";
+            } else if (reportChoice == 3) {
+                const auto dotPos = filename.find_last_of('.');
+                historyFile = filename.substr(0, dotPos) + "_history" + filename.substr(dotPos);
+            }
+
+            historySaved = saveHistoryToFile(historyFile);
+            if (historySaved) {
+                printMessage("Parking history saved to: " + historyFile);
+            } else {
+                printMessage("Failed to save parking history.", false);
+            }
+        }
+
+        if (reportChoice == 2 || reportChoice == 3) {
+            string revenueFile = filename;
+            if (reportChoice == 3 && filename.find('.') == string::npos) {
+                revenueFile += "_revenue.txt";
+            } else if (reportChoice == 3) {
+                const auto dotPos = filename.find_last_of('.');
+                revenueFile = filename.substr(0, dotPos) + "_revenue" + filename.substr(dotPos);
+            }
+
+            revenueSaved = saveRevenueToFile(revenueFile);
+            if (revenueSaved) {
+                printMessage("Daily revenue saved to: " + revenueFile);
+            } else {
+                printMessage("Failed to save daily revenue.", false);
+            }
+        }
     }
 
     void showCurrentRates() const {
@@ -821,6 +1046,7 @@ void showMainMenu() {
     cout << "\n";
     cout << "  UTILITIES\n";
     cout << "  11.  Load Demo/Test Data\n";
+    cout << "  12.  Export Reports to File\n";
     cout << "   0.  Exit System\n";
     printLine('-');
     cout << "  Enter your choice: ";
@@ -887,12 +1113,16 @@ int main() {
                 system.loadDemoData();
                 pauseScreen();
                 break;
+            case 12:
+                system.exportReports();
+                pauseScreen();
+                break;
             case 0:
                 printTitle("SYSTEM SHUTDOWN");
                 printMessage("Thank you for using Smart Parking Management System.");
                 break;
             default:
-                printMessage("Invalid menu choice. Select a number from 0 to 11.", false);
+                printMessage("Invalid menu choice. Select a number from 0 to 12.", false);
                 pauseScreen();
                 break;
         }

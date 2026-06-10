@@ -145,7 +145,30 @@ Use this file to manually test the system after compiling and running it.
 
 ---
 
-## Test 6: Reports
+## Test 6: Export Reports to File
+
+| Step | Input | Expected Result |
+|------|-------|-----------------|
+| 1 | Complete at least one vehicle exit first | History has records |
+| 2 | Menu `12`, choice `1` | Export history screen opens |
+| 3 | Filename: `history_report.txt` | Success message shown |
+| 4 | Open `history_report.txt` | File contains history table + CSV rows |
+| 5 | Menu `12`, choice `2` | Export revenue screen opens |
+| 6 | Filename: `revenue_report.txt` | Success message shown |
+| 7 | Open `revenue_report.txt` | File contains daily revenue summary + CSV |
+| 8 | Menu `12`, choice `3`, filename `full_report.txt` | Two files created: `_history` and `_revenue` |
+
+### Invalid filename (should fail)
+| Step | Input | Expected Result |
+|------|-------|-----------------|
+| 1 | Menu `12`, choice `1` | Export screen opens |
+| 2 | Filename: `bad\name.txt` | Error: invalid filename |
+
+**Pass if:** reports are saved correctly and files can be opened outside the program.
+
+---
+
+## Test 7: Reports
 
 | Step | Menu | What to Check |
 |------|------|---------------|
@@ -160,7 +183,7 @@ Use this file to manually test the system after compiling and running it.
 
 ---
 
-## Test 7: Full End-to-End Scenario
+## Test 8: Full End-to-End Scenario
 
 Run this full flow in order:
 

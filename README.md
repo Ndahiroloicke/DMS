@@ -51,7 +51,28 @@ SmartParking.exe
 | 9 | View daily revenue and all-time revenue |
 | 10 | View current active parking rates |
 | 11 | Load demo/test parking slots |
+| 12 | Export parking history or daily revenue to a file |
 | 0 | Exit the system |
+
+## Export Reports (Menu 12)
+
+You can save reports to a text file for record keeping or further analysis.
+
+1. Choose **12** from the main menu.
+2. Select report type:
+   - `1` = Parking History
+   - `2` = Daily Revenue
+   - `3` = Both reports
+3. Enter a filename, for example `parking_report.txt`.
+
+If you choose **Both**, the system creates two files:
+- `parking_report_history.txt`
+- `parking_report_revenue.txt`
+
+Each exported file includes:
+- A readable report header
+- Formatted report data
+- A CSV section that can be opened in Excel or Google Sheets
 
 ## Suggested Test Flow
 
@@ -65,6 +86,7 @@ SmartParking.exe
 6. Choose **4** to update Car rate to `1200`.
 7. Park another car, exit it, and confirm the new rate applies only to new exits.
 8. Choose **8** and **9** to review history and revenue.
+9. Choose **12** to export reports to a file.
 
 ## Data Structure Choices
 
